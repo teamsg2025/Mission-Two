@@ -1,0 +1,24 @@
+fastapi==0.116.1
+uvicorn[standard]==0.35.0
+python-dotenv==1.1.1
+
+livekit-api==1.0.5
+pydantic==2.11.7
+livekit-agents[openai,silero,tavus,google]==1.2.6
+openai==1.102.0
+
+# pinned transitive deps to avoid Render thrash
+aiohttp==3.12.15
+attrs==25.3.0
+frozenlist==1.7.0
+idna==3.10
+av==15.0.0
+numpy==2.3.2
+grpcio==1.74.0
+protobuf==6.32.0
+google-auth==2.40.3
+google-api-core==2.25.1
+httptools==0.6.4
+# uvloop==0.21.0
+watchfiles==1.1.0
+websockets==15.0.1
