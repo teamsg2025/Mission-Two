@@ -7,7 +7,7 @@ import { request, PERMISSIONS, RESULTS } from 'react-native-permissions';
 import { Ionicons } from '@expo/vector-icons';
 
 //const TOKEN_BASE = "https://0df5eb5f0242.ngrok-free.app";   
-const TOKEN_BASE = "https://mission-2-app-server.onrender.com"
+const TOKEN_BASE = "https://mission-two-server.onrender.com"
 
 function Controls({ 
   isMicEnabled, 

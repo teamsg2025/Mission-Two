@@ -12,7 +12,7 @@
       "distribution": "internal",
       "android": { "buildType": "apk" },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://mission-2-app-server.onrender.com",
+        "EXPO_PUBLIC_API_URL": "https://mission-two-server.onrender.com",
         "EXPO_PUBLIC_IS_PRODUCTION": "true"
       }
     },
@@ -20,7 +20,7 @@
       "autoIncrement": true,
       "android": { "buildType": "app-bundle" },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://mission-2-app-server.onrender.com",
+        "EXPO_PUBLIC_API_URL": "https://mission-two-server.onrender.com",
         "EXPO_PUBLIC_IS_PRODUCTION": "true"
       }
     }

@@ -6,6 +6,7 @@ import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 import 'react-native-reanimated';
 import '../global.css';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Initialize LiveKit globals for WebRTC
 import { registerGlobals } from '@livekit/react-native';
@@ -30,8 +31,15 @@ export default function RootLayout() {
       try {
         const pushService = PushNotificationService.getInstance();
         
-        // Initialize with a default user ID (you can make this dynamic)
-        const userId = 'user_' + Math.random().toString(36).substring(7);
+        // Get or create a persistent user ID
+        let userId = await AsyncStorage.getItem('persistent_user_id');
+        if (!userId) {
+          userId = 'user_' + Platform.OS + '_' + Math.random().toString(36).substring(7);
+          await AsyncStorage.setItem('persistent_user_id', userId);
+          console.log('📱 Created new persistent user ID:', userId);
+        } else {
+          console.log('📱 Using existing user ID:', userId);
+        }
         
         const success = await pushService.initialize(
           userId,

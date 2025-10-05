@@ -2,6 +2,7 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Configure notification behavior
 Notifications.setNotificationHandler({
@@ -11,6 +12,13 @@ Notifications.setNotificationHandler({
     shouldSetBadge: false,
   }),
 });
+
+// Storage keys for persisting registration status
+const STORAGE_KEYS = {
+  PUSH_TOKEN_REGISTERED: 'push_token_registered',
+  PUSH_TOKEN: 'push_token',
+  USER_ID: 'user_id',
+} as const;
 
 export interface PushTokenData {
   expo_push_token: string;
@@ -31,6 +39,47 @@ export class PushNotificationService {
       PushNotificationService.instance = new PushNotificationService();
     }
     return PushNotificationService.instance;
+  }
+
+  /**
+   * Check if push token was already registered
+   */
+  private async isTokenAlreadyRegistered(): Promise<boolean> {
+    try {
+      const registered = await AsyncStorage.getItem(STORAGE_KEYS.PUSH_TOKEN_REGISTERED);
+      return registered === 'true';
+    } catch (error) {
+      console.error('Error checking registration status:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Save registration status and token to storage
+   */
+  private async saveRegistrationStatus(token: string, userId?: string): Promise<void> {
+    try {
+      await AsyncStorage.multiSet([
+        [STORAGE_KEYS.PUSH_TOKEN_REGISTERED, 'true'],
+        [STORAGE_KEYS.PUSH_TOKEN, token],
+        [STORAGE_KEYS.USER_ID, userId || ''],
+      ]);
+      console.log('✅ Registration status saved to storage');
+    } catch (error) {
+      console.error('Error saving registration status:', error);
+    }
+  }
+
+  /**
+   * Get stored push token
+   */
+  private async getStoredToken(): Promise<string | null> {
+    try {
+      return await AsyncStorage.getItem(STORAGE_KEYS.PUSH_TOKEN);
+    } catch (error) {
+      console.error('Error getting stored token:', error);
+      return null;
+    }
   }
 
   /**
@@ -94,7 +143,7 @@ export class PushNotificationService {
    */
   public async testServerConnectivity(): Promise<boolean> {
     try {
-      const API_URL = Constants.expoConfig?.extra?.apiUrl || 'https://mission-2-app-server.onrender.com';
+      const API_URL = Constants.expoConfig?.extra?.apiUrl || 'https://mission-two-server.onrender.com';
       console.log('🔍 Testing server connectivity:', API_URL);
       
       const response = await fetch(`${API_URL}/`, {
@@ -129,7 +178,7 @@ export class PushNotificationService {
     deviceName?: string
   ): Promise<boolean> {
     try {
-      const API_URL = Constants.expoConfig?.extra?.apiUrl || 'https://mission-2-app-server.onrender.com';
+      const API_URL = Constants.expoConfig?.extra?.apiUrl || 'https://mission-two-server.onrender.com';
       
       console.log('🔗 Attempting to register token with server:', API_URL);
       console.log('📱 Token:', token.substring(0, 20) + '...');
@@ -228,6 +277,23 @@ export class PushNotificationService {
   }
 
   /**
+   * Reset registration status (useful for testing or re-registration)
+   */
+  public async resetRegistrationStatus(): Promise<void> {
+    try {
+      await AsyncStorage.multiRemove([
+        STORAGE_KEYS.PUSH_TOKEN_REGISTERED,
+        STORAGE_KEYS.PUSH_TOKEN,
+        STORAGE_KEYS.USER_ID,
+      ]);
+      this.expoPushToken = null;
+      console.log('✅ Registration status reset');
+    } catch (error) {
+      console.error('Error resetting registration status:', error);
+    }
+  }
+
+  /**
    * Initialize push notifications (register + setup listeners)
    */
   public async initialize(
@@ -236,6 +302,27 @@ export class PushNotificationService {
     onNotificationResponse?: (response: Notifications.NotificationResponse) => void
   ): Promise<boolean> {
     try {
+      // Check if token was already registered
+      const alreadyRegistered = await this.isTokenAlreadyRegistered();
+      
+      if (alreadyRegistered) {
+        console.log('📱 Push token already registered, skipping registration');
+        console.log('📱 This means the app was previously installed and token was registered');
+        
+        // Get the stored token
+        const storedToken = await this.getStoredToken();
+        if (storedToken) {
+          this.expoPushToken = storedToken;
+          console.log('📱 Using stored push token:', storedToken.substring(0, 20) + '...');
+        }
+        
+        // Setup listeners only (no registration needed)
+        this.setupNotificationListeners(onNotificationReceived, onNotificationResponse);
+        return true;
+      }
+
+      console.log('📱 First time registration, proceeding with push token registration...');
+
       // Test server connectivity first
       console.log('🔍 Testing server connectivity before registration...');
       const serverReachable = await this.testServerConnectivity();
@@ -248,6 +335,10 @@ export class PushNotificationService {
       if (!token) {
         return false;
       }
+
+      // Save registration status to prevent future registrations
+      console.log('📱 Saving registration status to prevent future registrations...');
+      await this.saveRegistrationStatus(token, userId);
 
       // Register with server
       const registered = await this.registerTokenWithServer(token, userId);
