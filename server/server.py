@@ -87,6 +87,19 @@ avatar_processes = {}
 push_tokens = {}  # {expo_push_token: {user_id, device_name, registered_at}}
 active_calls = {}  # {call_id: CallResponse}
 
+# Connection optimization settings
+CONNECTION_TIMEOUT = 10  # seconds
+AVATAR_WARMUP_DELAY = 0.5  # seconds
+
+# Notification message variations - Student-focused invitations to chat with AI agent
+NOTIFICATION_MESSAGES = [
+    "Hey! Your AI study buddy is online and ready to help!",
+    "Come chat with your AI tutor - they're waiting to assist you!",
+    "Your AI learning companion is here! Let's study together!",
+    "Ready for some AI-powered study help? Come online now!",
+    "Your AI mentor is available! Time for a learning session!"
+]
+
 async def start_avatar_agent(room_name: str) -> bool:
     """
     Start an avatar agent process for the specified room.
@@ -148,15 +161,15 @@ async def start_avatar_agent(room_name: str) -> bool:
         # Store the process
         avatar_processes[room_name] = process
         
-        # Give it a moment to start
-        await asyncio.sleep(2)
+        # Optimized startup delay for faster connection
+        await asyncio.sleep(AVATAR_WARMUP_DELAY)
         
         # Check if process is still running
         if process.poll() is None:
             print(f"Avatar agent started successfully for room: {room_name}")
-            # Read any immediate output
+            # Read any immediate output with shorter timeout
             try:
-                stdout, stderr = process.communicate(timeout=1)
+                stdout, stderr = process.communicate(timeout=0.5)
                 if stdout:
                     print(f"Avatar agent stdout: {stdout}")
                 if stderr:
@@ -318,14 +331,13 @@ async def join_room(request: JoinRoomRequest):
             "camera_enabled": request.camera_enabled
         }
 
-        # Optionally start avatar agent if requested and credentials are available
+        # Start avatar agent in parallel with token generation for faster connection
         if request.invite_avatar:
-            avatar_started = await start_avatar_agent(request.room_name)
-            response_data["avatar_invited"] = avatar_started
-            if avatar_started:
-                response_data["avatar_name"] = "AI Assistant"
-            else:
-                response_data["avatar_error"] = "Failed to start avatar agent"
+            # Start avatar agent asynchronously without waiting
+            asyncio.create_task(start_avatar_agent(request.room_name))
+            response_data["avatar_invited"] = True  # Assume it will start
+            response_data["avatar_name"] = "AI Assistant"
+            response_data["avatar_status"] = "Starting..."
         else:
             response_data["avatar_invited"] = False
         
@@ -511,10 +523,13 @@ async def initiate_call(request: InitiateCallRequest):
         sent_count = 0
         for token in target_tokens:
             try:
+                # Select a random message variation for student-focused AI agent invitation
+                random_message = random.choice(NOTIFICATION_MESSAGES)
+                
                 notification_request = SendNotificationRequest(
                     to=token,
-                    title="Incoming Call",
-                    body=f"{request.caller_name} is calling you",
+                    title=random_message,
+                    body=f"{request.caller_name} wants to connect with you",
                     data={
                         "type": "incoming_call",
                         "call_id": call_id,
