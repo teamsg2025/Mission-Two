@@ -1,11 +1,11 @@
 export default {
   expo: {
-    name: "rn-video-calling-app",
-    slug: "rn-video-calling-app",
+    name: "StudyMate",
+    slug: "studymate",
     version: "1.0.0",
     orientation: "portrait",
-    icon: "./assets/images/icon.png",
-    scheme: "rn-video-calling-app",
+    icon: "./assets/images/StudyMate Logo.png",
+    scheme: "studymate",
     userInterfaceStyle: "automatic",
     newArchEnabled: false,
     ios: {
@@ -19,7 +19,7 @@ export default {
       googleServicesFile: process.env.GOOGLE_SERVICES_JSON,
       edgeToEdgeEnabled: true,
       adaptiveIcon: {
-        foregroundImage: "./assets/images/adaptive-icon.png",
+        foregroundImage: "./assets/images/StudyMate Logo.png",
         backgroundColor: "#ffffff",
       },
       permissions: [
@@ -30,19 +30,19 @@ export default {
         "BLUETOOTH_CONNECT",
         "MODIFY_AUDIO_SETTINGS",
       ],
-      package: "com.anonymous.rnvideocallingapp",
+      package: "com.studymate.app",
     },
     web: {
       bundler: "metro",
       output: "static",
-      favicon: "./assets/images/favicon.png",
+      favicon: "./assets/images/StudyMate Logo.png",
     },
     plugins: [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          image: "./assets/images/splash-icon.png",
+          image: "./assets/images/StudyMate Logo.png",
           imageWidth: 200,
           resizeMode: "contain",
           backgroundColor: "#ffffff",
@@ -62,7 +62,7 @@ export default {
       [
         "expo-notifications",
         {
-          icon: "./assets/images/icon.png",
+          icon: "./assets/images/StudyMate Logo.png",
           color: "#ffffff",
           defaultChannel: "default",
         },

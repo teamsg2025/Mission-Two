@@ -1,26 +1,46 @@
-import { Stack } from "expo-router";
+import { Tabs } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { Ionicons } from '@expo/vector-icons';
 
-export default function RootLayout() {
+export default function TabLayout() {
   return (
     <>
       <StatusBar style="light" />
-      <Stack
+      <Tabs
         screenOptions={{
           headerStyle: { backgroundColor: "#0b0f16" },
           headerTintColor: "white",
-          contentStyle: { backgroundColor: "#0b0f16" },
+          headerTitleAlign: "center",
+          tabBarStyle: { 
+            backgroundColor: "#0b0f16",
+            borderTopColor: "#1f2937",
+            borderTopWidth: 1,
+          },
+          tabBarActiveTintColor: "#6366f1",
+          tabBarInactiveTintColor: "#6b7280",
         }}
       >
-        <Stack.Screen
+        <Tabs.Screen
           name="index"
-          options={{ title: "Home" }}   // 👈 custom header
+          options={{ 
+            title: "Call",
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="call" size={size} color={color} />
+            ),
+            headerTitle: "StudyMate"
+          }}
         />
-        <Stack.Screen
-          name="call"
-          options={{ title: "In Call" }}    // 👈 custom header
+        <Tabs.Screen
+          name="profile"
+          options={{ 
+            title: "Profile",
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="person" size={size} color={color} />
+            ),
+            headerTitle: "Profile"
+          }}
         />
-      </Stack>
+      </Tabs>
     </>
   );
 }

@@ -1,13 +1,15 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, SafeAreaView, Button, Platform, Alert, TouchableOpacity, Image } from "react-native";
+import "../global.css";
 import { useLocalSearchParams, router } from "expo-router";
+import { useDisplayName } from '@/hooks/useDisplayName';
 import { LiveKitRoom, useRoomContext, useLocalParticipant, VideoTrack, useTracks } from "@livekit/react-native";
 import { Track } from "livekit-client";
 import { request, PERMISSIONS, RESULTS } from 'react-native-permissions';
 import { Ionicons } from '@expo/vector-icons';
 
-//const TOKEN_BASE = "https://0df5eb5f0242.ngrok-free.app";   
-const TOKEN_BASE = "https://mission-two-server.onrender.com"
+const TOKEN_BASE = "https://ff8f07284112.ngrok-free.app";   
+//const TOKEN_BASE = "https://mission-two-server.onrender.com"
 
 function Controls({ 
   isMicEnabled, 
@@ -194,13 +196,13 @@ function Grid({ isCameraEnabled }: { isCameraEnabled: boolean }) {
 }
 
 export default function CallScreen() {
-  const { room: roomName, name, mic, cam, avatar } = useLocalSearchParams<{ 
+  const { room: roomName, mic, cam, avatar } = useLocalSearchParams<{ 
     room: string; 
-    name: string; 
     mic: string; 
     cam: string; 
     avatar: string; 
   }>();
+  const { displayName } = useDisplayName();
   const [token, setToken] = useState<string | null>(null);
   const [serverUrl, setServerUrl] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -256,7 +258,7 @@ export default function CallScreen() {
         console.log("Platform:", Platform.OS);
         console.log("Request payload:", {
           room_name: roomName || 'demo',
-          participant_name: name || 'user',
+          participant_name: displayName || 'user',
           mic_enabled: mic === 'true',
           camera_enabled: cam === 'true',
           invite_avatar: avatar === 'true'
@@ -270,7 +272,7 @@ export default function CallScreen() {
           },
           body: JSON.stringify({
             room_name: roomName || 'demo',
-            participant_name: name || 'user',
+            participant_name: displayName || 'user',
             mic_enabled: mic === 'true',
             camera_enabled: cam === 'true',
             invite_avatar: avatar === 'true'
@@ -312,7 +314,7 @@ export default function CallScreen() {
         setErr(e.message || "Failed to fetch token");
       }
     })();
-  }, [roomName, name, mic, cam, avatar]);
+  }, [roomName, displayName, mic, cam, avatar]);
 
   if (err) {
     return (

@@ -1,6 +1,7 @@
 import { router } from "expo-router";
-import { useState } from "react";
-import { Pressable, Switch, Text, TextInput, View } from "react-native";
+import { useState, useEffect } from "react";
+import { Pressable, Switch, Text, TextInput, View, Image } from "react-native";
+import { useDisplayName } from '@/hooks/useDisplayName';
 
 // Function to generate a unique room name
 const generateRoomName = () => {
@@ -10,64 +11,102 @@ const generateRoomName = () => {
 };
 
 export default function JoinScreen() {
-  const [name, setName] = useState("abel");
+  const { displayName, isLoading } = useDisplayName();
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
   const [inviteAvatar, setInviteAvatar] = useState(true);
 
-  const canJoin = name.trim().length > 0;
+  const canJoin = displayName && displayName.trim().length > 0;
 
-  const handleJoin = () => {
+  const handleJoin = async () => {
     const roomName = generateRoomName();
     // For FE-only phase, just navigate with params.
     router.push({
       pathname: "/call",
-      params: { room: roomName, name, mic: String(micOn), cam: String(camOn), avatar: String(inviteAvatar) },
+      params: { room: roomName, name: displayName, mic: String(micOn), cam: String(camOn), avatar: String(inviteAvatar) },
     });
   };
 
   return (
     <View className="flex-1 items-center justify-center px-5 bg-[#0b0f16]">
-      <Text className="text-white text-2xl font-semibold mb-8">Join a room</Text>
-
-      <View className="w-full gap-4">
-        <View>
-          <Text className="text-neutral-300 mb-2">Your display name</Text>
-          <TextInput
-            value={name}
-            onChangeText={setName}
-            placeholder="e.g. abel"
-            placeholderTextColor="#6b7280"
-            className="border border-neutral-700 rounded-xl px-4 py-3 text-white"
+      {/* Welcome Header */}
+      <View className="items-center mb-8">
+        {/* StudyMate Logo */}
+        <View className="mb-6">
+          <Image 
+            source={require('../../assets/images/StudyMate Logo.png')}
+            className="w-24 h-24 rounded-full"
+            resizeMode="contain"
           />
         </View>
+        
+        <Text className="text-white text-3xl font-bold mb-2">
+          Welcome back, {displayName || 'there'}! 👋
+        </Text>
+        <Text className="text-neutral-400 text-lg text-center">
+          Ready to dive into an amazing call experience?
+        </Text>
+      </View>
 
-        <View className="flex-row items-center justify-between mt-2">
-          <View className="flex-row items-center gap-2">
-            <Text className="text-neutral-300">Mic on</Text>
-            <Switch value={micOn} onValueChange={setMicOn} />
-          </View>
-          <View className="flex-row items-center gap-2">
-            <Text className="text-neutral-300">Camera on</Text>
-            <Switch value={camOn} onValueChange={setCamOn} />
-          </View>
-        </View>
+      <View className="w-full gap-6">
+        {/* Call Settings */}
+        <View className="bg-neutral-800/30 rounded-2xl p-5">
+          <Text className="text-white text-lg font-semibold mb-4">Call Settings</Text>
+          
+          <View className="space-y-4">
+            <View className="flex-row items-center justify-between">
+              <View className="flex-1">
+                <Text className="text-neutral-300 text-base font-medium">Microphone</Text>
+                <Text className="text-neutral-500 text-sm">Start with mic enabled</Text>
+              </View>
+              <Switch 
+                value={micOn} 
+                onValueChange={setMicOn}
+                trackColor={{ false: "#374151", true: "#4f46e5" }}
+                thumbColor={micOn ? "#ffffff" : "#9ca3af"}
+              />
+            </View>
 
-        <View className="flex-row items-center justify-between mt-4">
-          <View className="flex-row items-center gap-2">
-            <Text className="text-neutral-300">Invite AI Avatar</Text>
-            <Switch value={inviteAvatar} onValueChange={setInviteAvatar} />
+            <View className="flex-row items-center justify-between">
+              <View className="flex-1">
+                <Text className="text-neutral-300 text-base font-medium">Camera</Text>
+                <Text className="text-neutral-500 text-sm">Start with camera enabled</Text>
+              </View>
+              <Switch 
+                value={camOn} 
+                onValueChange={setCamOn}
+                trackColor={{ false: "#374151", true: "#4f46e5" }}
+                thumbColor={camOn ? "#ffffff" : "#9ca3af"}
+              />
+            </View>
+
+            <View className="flex-row items-center justify-between">
+              <View className="flex-1">
+                <Text className="text-neutral-300 text-base font-medium">AI Assistant</Text>
+                <Text className="text-neutral-500 text-sm">Invite AI avatar to join</Text>
+              </View>
+              <Switch 
+                value={inviteAvatar} 
+                onValueChange={setInviteAvatar}
+                trackColor={{ false: "#374151", true: "#4f46e5" }}
+                thumbColor={inviteAvatar ? "#ffffff" : "#9ca3af"}
+              />
+            </View>
           </View>
         </View>
 
         <Pressable
           onPress={handleJoin}
           disabled={!canJoin}
-          className={`mt-6 rounded-2xl px-5 py-4 items-center ${
-            canJoin ? "bg-indigo-600" : "bg-neutral-700"
+          className={`mt-8 rounded-2xl px-8 py-5 items-center shadow-lg ${
+            canJoin 
+              ? "bg-indigo-600" 
+              : "bg-neutral-700"
           }`}
         >
-          <Text className="text-white text-base font-medium">Join</Text>
+          <Text className="text-white text-lg font-semibold">
+            {canJoin ? "🚀 Start Your Call" : "Loading..."}
+          </Text>
         </Pressable>
       </View>
     </View>
