@@ -12,6 +12,8 @@ from livekit.plugins import (
     google,
 )
 
+LANG_EN = "en-US"
+LANG_ZH = "cmn-CN"
 load_dotenv()
 
 TAVUS_API_KEY = os.getenv("TAVUS_API_KEY")
@@ -20,11 +22,15 @@ TAVUS_PERSONA_ID = os.getenv("TAVUS_PERSONA_ID")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
+# Get language from environment and map to proper constants
+LANGUAGE_CODE = os.getenv("LANGUAGE", "en-US")
+LANGUAGE = LANG_EN if LANGUAGE_CODE == "en-US" else LANG_ZH
+
 class VideoAssistant(Agent):
     def __init__(self) -> None:
         super().__init__(
             instructions = """
-            You are StudyMate, a real-time, voice-first Study Partner for a student. You operate on two tracks:
+            You are StudyMate, a real-time, voice-first Study Partner for a student. You are mulitlingual, and can respond in English and Chinese. You operate on two tracks:
             (1) ACADEMICS — actionable help (study techniques, clarifying concepts, step-by-step problem solving).
             (2) SUPPORT — stress relief, emotional coaching, light personal chat to decompress.
 
@@ -87,6 +93,7 @@ class VideoAssistant(Agent):
                 temperature=0.1, 
                 api_key=GOOGLE_API_KEY,
                 modalities=["AUDIO"],  # Only AUDIO is valid for now
+                language=LANGUAGE
             ),
         )
 
@@ -106,9 +113,7 @@ async def entrypoint(ctx: agents.JobContext):
     print("[avatar_agent] connected")
 
     # Create the AI agent session
-    session = AgentSession(
-        turn_detection="manual",
-    )
+    session = AgentSession()
     print("[avatar_agent] created AI agent session")
     # session = AgentSession(
     #     stt=openai.STT(

@@ -8,7 +8,7 @@ import { Track } from "livekit-client";
 import { request, PERMISSIONS, RESULTS } from 'react-native-permissions';
 import { Ionicons } from '@expo/vector-icons';
 
-const TOKEN_BASE = "https://ff8f07284112.ngrok-free.app";   
+const TOKEN_BASE = "https://ee4e696137b6.ngrok-free.app";   
 //const TOKEN_BASE = "https://mission-two-server.onrender.com"
 
 function Controls({ 
@@ -196,11 +196,12 @@ function Grid({ isCameraEnabled }: { isCameraEnabled: boolean }) {
 }
 
 export default function CallScreen() {
-  const { room: roomName, mic, cam, avatar } = useLocalSearchParams<{ 
+  const { room: roomName, mic, cam, avatar, language } = useLocalSearchParams<{ 
     room: string; 
     mic: string; 
     cam: string; 
     avatar: string; 
+    language: string;
   }>();
   const { displayName } = useDisplayName();
   const [token, setToken] = useState<string | null>(null);
@@ -261,7 +262,8 @@ export default function CallScreen() {
           participant_name: displayName || 'user',
           mic_enabled: mic === 'true',
           camera_enabled: cam === 'true',
-          invite_avatar: avatar === 'true'
+          invite_avatar: avatar === 'true',
+          language: language || 'en-US'
         });
 
         // Use the /join-room endpoint with POST request
@@ -275,7 +277,8 @@ export default function CallScreen() {
             participant_name: displayName || 'user',
             mic_enabled: mic === 'true',
             camera_enabled: cam === 'true',
-            invite_avatar: avatar === 'true'
+            invite_avatar: avatar === 'true',
+            language: language || 'en-US'
           })
         });
 
@@ -314,7 +317,7 @@ export default function CallScreen() {
         setErr(e.message || "Failed to fetch token");
       }
     })();
-  }, [roomName, displayName, mic, cam, avatar]);
+  }, [roomName, displayName, mic, cam, avatar, language]);
 
   if (err) {
     return (

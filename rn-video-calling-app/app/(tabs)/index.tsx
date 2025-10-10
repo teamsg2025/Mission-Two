@@ -1,7 +1,9 @@
 import { router } from "expo-router";
 import { useState, useEffect } from "react";
-import { Pressable, Switch, Text, TextInput, View, Image } from "react-native";
+import { Pressable, Switch, Text, TextInput, View, Image, ScrollView } from "react-native";
+import { Ionicons } from '@expo/vector-icons';
 import { useDisplayName } from '@/hooks/useDisplayName';
+import { useLanguage } from '@/hooks/useLanguage';
 
 // Function to generate a unique room name
 const generateRoomName = () => {
@@ -12,6 +14,7 @@ const generateRoomName = () => {
 
 export default function JoinScreen() {
   const { displayName, isLoading } = useDisplayName();
+  const { selectedLanguage, setSelectedLanguage, languages } = useLanguage();
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
   const [inviteAvatar, setInviteAvatar] = useState(true);
@@ -23,12 +26,20 @@ export default function JoinScreen() {
     // For FE-only phase, just navigate with params.
     router.push({
       pathname: "/call",
-      params: { room: roomName, name: displayName, mic: String(micOn), cam: String(camOn), avatar: String(inviteAvatar) },
+      params: { 
+        room: roomName, 
+        name: displayName, 
+        mic: String(micOn), 
+        cam: String(camOn), 
+        avatar: String(inviteAvatar),
+        language: selectedLanguage.code
+      },
     });
   };
 
   return (
-    <View className="flex-1 items-center justify-center px-5 bg-[#0b0f16]">
+    <ScrollView className="flex-1 bg-[#0b0f16]" contentContainerStyle={{ flexGrow: 1 }}>
+      <View className="flex-1 items-center justify-center px-5 py-8">
       {/* Welcome Header */}
       <View className="items-center mb-8">
         {/* StudyMate Logo */}
@@ -52,6 +63,38 @@ export default function JoinScreen() {
         {/* Call Settings */}
         <View className="bg-neutral-800/30 rounded-2xl p-5">
           <Text className="text-white text-lg font-semibold mb-4">Call Settings</Text>
+          
+          {/* Language Selection */}
+          <View className="mb-6">
+            <Text className="text-neutral-300 text-base font-medium mb-3">AI Assistant Language</Text>
+            <Text className="text-neutral-500 text-sm mb-4">Choose the language for your AI study assistant</Text>
+            
+            <View className="space-y-3">
+              {languages.map((language) => (
+                <Pressable
+                  key={language.code}
+                  onPress={() => setSelectedLanguage(language)}
+                  className={`flex-row items-center justify-between p-4 rounded-xl border ${
+                    selectedLanguage.code === language.code
+                      ? 'border-indigo-500 bg-indigo-500/10'
+                      : 'border-neutral-700 bg-neutral-800/50'
+                  }`}
+                >
+                  <View className="flex-1">
+                    <Text className="text-white text-base font-medium">
+                      {language.nativeName}
+                    </Text>
+                    <Text className="text-neutral-400 text-sm">
+                      {language.name}
+                    </Text>
+                  </View>
+                  {selectedLanguage.code === language.code && (
+                    <Ionicons name="checkmark-circle" size={24} color="#6366f1" />
+                  )}
+                </Pressable>
+              ))}
+            </View>
+          </View>
           
           <View className="space-y-4">
             <View className="flex-row items-center justify-between">
@@ -109,6 +152,7 @@ export default function JoinScreen() {
           </Text>
         </Pressable>
       </View>
-    </View>
+      </View>
+    </ScrollView>
   );
 }

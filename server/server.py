@@ -50,6 +50,7 @@ class JoinRoomRequest(BaseModel):
     mic_enabled: bool = True
     camera_enabled: bool = True
     invite_avatar: bool = False  # New field to optionally invite avatar
+    language: str = "en-US"  # Language code for AI assistant
 
 class InviteAvatarRequest(BaseModel):
     room_name: str
@@ -101,12 +102,13 @@ NOTIFICATION_MESSAGES = [
     "Your AI mentor is available! Time for a learning session!"
 ]
 
-async def start_avatar_agent(room_name: str) -> bool:
+async def start_avatar_agent(room_name: str, language: str = "en-US") -> bool:
     """
     Start an avatar agent process for the specified room.
     Returns True if successful, False otherwise.
     """
     try:
+        print(f"[server] Starting avatar agent for room: {room_name}, language: {language}")
         if not (TAVUS_API_KEY and TAVUS_REPLICA_ID and TAVUS_PERSONA_ID):
             print("Tavus credentials not configured")
             return False
@@ -131,6 +133,7 @@ async def start_avatar_agent(room_name: str) -> bool:
             "TAVUS_API_KEY": TAVUS_API_KEY,
             "TAVUS_REPLICA_ID": TAVUS_REPLICA_ID,
             "TAVUS_PERSONA_ID": TAVUS_PERSONA_ID,
+            "LANGUAGE": language,
         })
         
         # Start the avatar agent process with virtual environment
@@ -334,8 +337,9 @@ async def join_room(request: JoinRoomRequest):
 
         # Start avatar agent in parallel with token generation for faster connection
         if request.invite_avatar:
+            print(f"[server] Starting avatar with language: {request.language}")
             # Start avatar agent asynchronously without waiting
-            asyncio.create_task(start_avatar_agent(request.room_name))
+            asyncio.create_task(start_avatar_agent(request.room_name, request.language))
             response_data["avatar_invited"] = True  # Assume it will start
             response_data["avatar_name"] = "AI Assistant"
             response_data["avatar_status"] = "Starting..."

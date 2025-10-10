@@ -1,7 +1,7 @@
 export default {
   expo: {
     name: "StudyMate",
-    slug: "studymate",
+    slug: "rn-video-calling-app",
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/images/StudyMate Logo.png",
@@ -30,7 +30,7 @@ export default {
         "BLUETOOTH_CONNECT",
         "MODIFY_AUDIO_SETTINGS",
       ],
-      package: "com.studymate.app",
+      package: "com.anonymous.rnvideocallingapp",
     },
     web: {
       bundler: "metro",
