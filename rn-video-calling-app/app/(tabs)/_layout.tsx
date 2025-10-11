@@ -31,6 +31,16 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
+          name="spark"
+          options={{ 
+            title: "Spark",
+            tabBarIcon: ({ color, size}) => (
+              <Ionicons name="people" size={size} color={color} />
+            ),
+            headerTitle: "Conversation Spark"
+          }}
+        />
+        <Tabs.Screen
           name="profile"
           options={{ 
             title: "Profile",

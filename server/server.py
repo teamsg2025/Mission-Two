@@ -51,6 +51,7 @@ class JoinRoomRequest(BaseModel):
     camera_enabled: bool = True
     invite_avatar: bool = False  # New field to optionally invite avatar
     language: str = "en-US"  # Language code for AI assistant
+    device_id: Optional[str] = None  # Persistent device ID for memory
 
 class InviteAvatarRequest(BaseModel):
     room_name: str
@@ -83,7 +84,27 @@ class RegisterTokenRequest(BaseModel):
     device_name: Optional[str] = None
 
 # Store running avatar processes
-avatar_processes = {}
+avatar_processes = {}  # {room_name: process}
+
+# Background task to monitor and clean up dead avatar processes
+async def cleanup_dead_processes():
+    """Background task to clean up terminated avatar processes"""
+    while True:
+        await asyncio.sleep(5)  # Check every 5 seconds
+        dead_rooms = []
+        for room_name, process in avatar_processes.items():
+            if process.poll() is not None:  # Process has ended
+                dead_rooms.append(room_name)
+                print(f"[server] Cleaned up dead avatar process for room: {room_name}")
+        
+        for room_name in dead_rooms:
+            del avatar_processes[room_name]
+
+# Start cleanup task on app startup
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(cleanup_dead_processes())
+    print("[server] Started avatar process cleanup task")
 
 # Store push tokens and active calls
 push_tokens = {}  # {expo_push_token: {user_id, device_name, registered_at}}
@@ -102,13 +123,13 @@ NOTIFICATION_MESSAGES = [
     "Your AI mentor is available! Time for a learning session!"
 ]
 
-async def start_avatar_agent(room_name: str, language: str = "en-US") -> bool:
+async def start_avatar_agent(room_name: str, language: str = "en-US", display_name: Optional[str] = None) -> bool:
     """
     Start an avatar agent process for the specified room.
     Returns True if successful, False otherwise.
     """
     try:
-        print(f"[server] Starting avatar agent for room: {room_name}, language: {language}")
+        print(f"[server] Starting avatar agent for room: {room_name}, language: {language}, user: {display_name or 'None'}...")
         if not (TAVUS_API_KEY and TAVUS_REPLICA_ID and TAVUS_PERSONA_ID):
             print("Tavus credentials not configured")
             return False
@@ -134,6 +155,7 @@ async def start_avatar_agent(room_name: str, language: str = "en-US") -> bool:
             "TAVUS_REPLICA_ID": TAVUS_REPLICA_ID,
             "TAVUS_PERSONA_ID": TAVUS_PERSONA_ID,
             "LANGUAGE": language,
+            "USER_DISPLAY_NAME": display_name or "",  # Pass display name for memory
         })
         
         # Start the avatar agent process with virtual environment
@@ -153,12 +175,13 @@ async def start_avatar_agent(room_name: str, language: str = "en-US") -> bool:
         
         print(f"Starting avatar agent with command: {' '.join(cmd)}")
         
+        # Don't capture output - let it print directly to console
         process = subprocess.Popen(
             cmd,
             env=env,
             cwd=os.path.dirname(os.path.abspath(__file__)),  # Use server directory
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stdout=None,  # Print directly to console
+            stderr=None,  # Print directly to console
             text=True
         )
         
@@ -170,21 +193,11 @@ async def start_avatar_agent(room_name: str, language: str = "en-US") -> bool:
         
         # Check if process is still running
         if process.poll() is None:
-            print(f"Avatar agent started successfully for room: {room_name}")
-            # Read any immediate output with shorter timeout
-            try:
-                stdout, stderr = process.communicate(timeout=0.5)
-                if stdout:
-                    print(f"Avatar agent stdout: {stdout}")
-                if stderr:
-                    print(f"Avatar agent stderr: {stderr}")
-            except subprocess.TimeoutExpired:
-                # Process is still running, which is good
-                pass
+            print(f"✅ Avatar agent started successfully for room: {room_name}")
+            print(f"   Avatar agent logs will appear below...")
             return True
         else:
-            stdout, stderr = process.communicate()
-            print(f"Avatar agent failed to start. stdout: {stdout}, stderr: {stderr}")
+            print(f"❌ Avatar agent failed to start for room: {room_name}")
             return False
             
     except Exception as e:
@@ -337,9 +350,9 @@ async def join_room(request: JoinRoomRequest):
 
         # Start avatar agent in parallel with token generation for faster connection
         if request.invite_avatar:
-            print(f"[server] Starting avatar with language: {request.language}")
+            print(f"[server] Starting avatar with language: {request.language}, user: {request.participant_name}")
             # Start avatar agent asynchronously without waiting
-            asyncio.create_task(start_avatar_agent(request.room_name, request.language))
+            asyncio.create_task(start_avatar_agent(request.room_name, request.language, request.participant_name))
             response_data["avatar_invited"] = True  # Assume it will start
             response_data["avatar_name"] = "AI Assistant"
             response_data["avatar_status"] = "Starting..."
@@ -417,12 +430,15 @@ async def cleanup_avatar_process(room_name: str):
             process = avatar_processes[room_name]
             if process.poll() is None:
                 # Process is still running, terminate it
+                print(f"[server] Terminating avatar process for room: {room_name}")
                 process.terminate()
                 try:
                     process.wait(timeout=5)
+                    print(f"[server] Avatar process terminated gracefully")
                 except subprocess.TimeoutExpired:
+                    print(f"[server] Force killing avatar process")
                     process.kill()
-                print(f"Terminated avatar process for room: {room_name}")
+                    process.wait()
             del avatar_processes[room_name]
             return {
                 "success": True,
@@ -434,10 +450,28 @@ async def cleanup_avatar_process(room_name: str):
                 "message": f"No avatar process found for room: {room_name}"
             }
     except Exception as e:
+        print(f"[server] Error cleaning up avatar: {str(e)}")
         return {
             "success": False,
             "error": f"Failed to cleanup avatar process: {str(e)}"
         }
+
+@app.get("/active-avatars")
+async def get_active_avatars():
+    """
+    Get list of active avatar processes for debugging.
+    """
+    active = {}
+    for room_name, process in avatar_processes.items():
+        active[room_name] = {
+            "pid": process.pid,
+            "is_running": process.poll() is None,
+            "returncode": process.returncode
+        }
+    return {
+        "active_avatars": active,
+        "total_count": len(avatar_processes)
+    }
 
 @app.get("/test-tavus")
 async def test_tavus_credentials():
@@ -592,6 +626,145 @@ async def get_registered_tokens():
         ],
         "total_tokens": len(push_tokens)
     }
+
+# ============= Conversation Spark API =============
+
+@app.get("/api/users")
+async def get_all_users():
+    """Get all unique users from Qdrant memory database"""
+    try:
+        from memory_service import get_memory_service
+        memory_service = get_memory_service()
+        
+        # Get all memories to extract unique user IDs
+        # Note: In production, you'd want a more efficient way to get unique users
+        # For now, we'll use Qdrant's scroll API to get all points
+        from qdrant_client import QdrantClient
+        
+        qdrant_url = os.getenv("QDRANT_URL")
+        qdrant_api_key = os.getenv("QDRANT_API_KEY")
+        
+        if not qdrant_url or not qdrant_api_key:
+            return {"users": []}
+        
+        client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+        
+        # Scroll through all points to get unique user_ids
+        points, _ = client.scroll(
+            collection_name="studymate_memories",
+            limit=1000,  # Adjust as needed
+            with_payload=True,
+            with_vectors=False
+        )
+        
+        # Extract unique user_ids (which are now display names)
+        user_names = set()
+        for point in points:
+            if point.payload and 'user_id' in point.payload:
+                user_names.add(point.payload['user_id'])
+        
+        # Create user objects with basic info
+        users = [
+            {
+                "id": user_name,
+                "display_name": user_name
+            }
+            for user_name in sorted(user_names)
+        ]
+        
+        return {"users": users, "total": len(users)}
+        
+    except Exception as e:
+        print(f"Error fetching users: {e}")
+        import traceback
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Failed to fetch users: {str(e)}")
+
+class ConversationStartersRequest(BaseModel):
+    display_name: str
+
+@app.post("/api/conversation-starters")
+async def generate_conversation_starters(request: ConversationStartersRequest):
+    """Generate conversation starter questions based on a user's memories"""
+    try:
+        from memory_service import get_memory_service
+        import google.generativeai as genai
+        
+        memory_service = get_memory_service()
+        display_name = request.display_name
+        
+        # Get all memories for this user (using display_name as user_id)
+        memories = memory_service.get_all_memories(display_name)
+        
+        if not memories:
+            return {
+                "starters": [
+                    "Hey! How's your studying going?",
+                    "What subjects are you focusing on these days?",
+                    "Need any study tips or motivation?"
+                ],
+                "user_info": f"{display_name} (no memory data yet)"
+            }
+        
+        # Format memories into a context string
+        memory_context = memory_service.format_memories_for_context(memories)
+        
+        # Use Gemini to generate conversation starters
+        genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+        model = genai.GenerativeModel('gemini-2.0-flash-exp')
+        
+        prompt = f"""Based on this user's study session history, generate 5 specific, friendly conversation starter questions that another student could ask them to break the ice and build a study friendship.
+
+User's Study History:
+{memory_context}
+
+Requirements:
+1. Questions should be specific to topics they've studied
+2. Casual and friendly tone (not formal)
+3. Show genuine interest in their progress
+4. Mix of questions about: their topics, challenges, progress, feelings
+5. Keep each question under 15 words
+
+Format: Return ONLY a JSON array of 5 strings, nothing else.
+Example: ["How's your photosynthesis revision going?", "Need help with that algebra concept?", ...]"""
+
+        response = model.generate_content(prompt)
+        
+        # Parse the JSON response
+        import json
+        import re
+        
+        # Extract JSON from response
+        text = response.text.strip()
+        # Remove markdown code blocks if present
+        text = re.sub(r'```json\s*', '', text)
+        text = re.sub(r'```\s*', '', text)
+        
+        starters = json.loads(text)
+        
+        return {
+            "starters": starters,
+            "user_info": display_name,
+            "memory_count": len(memories)
+        }
+        
+    except Exception as e:
+        print(f"Error generating conversation starters: {e}")
+        import traceback
+        print(traceback.format_exc())
+        
+        # Return fallback starters
+        return {
+            "starters": [
+                "Hey! How's your studying going?",
+                "What subjects are you working on?",
+                "Need any study help or tips?",
+                "How are you feeling about your exams?",
+                "Want to be study buddies?"
+            ],
+            "user_info": display_name,
+            "error": "Using fallback questions"
+        }
 
 if __name__ == "__main__":
     import uvicorn

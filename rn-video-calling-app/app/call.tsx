@@ -7,9 +7,11 @@ import { LiveKitRoom, useRoomContext, useLocalParticipant, VideoTrack, useTracks
 import { Track } from "livekit-client";
 import { request, PERMISSIONS, RESULTS } from 'react-native-permissions';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Device from 'expo-device';
 
-const TOKEN_BASE = "https://ee4e696137b6.ngrok-free.app";   
-//const TOKEN_BASE = "https://mission-two-server.onrender.com"
+// const TOKEN_BASE = "https://8545f05dd80f.ngrok-free.app";   
+const TOKEN_BASE = "https://mission-two-server.onrender.com"
 
 function Controls({ 
   isMicEnabled, 
@@ -195,6 +197,40 @@ function Grid({ isCameraEnabled }: { isCameraEnabled: boolean }) {
   );
 }
 
+// Function to get or create a persistent device ID
+async function getDeviceId(): Promise<string> {
+  try {
+    // Try to get existing device ID from storage
+    let deviceId = await AsyncStorage.getItem('studymate_device_id');
+    
+    if (!deviceId) {
+      // Generate a new device ID using device info
+      const deviceInfo = [
+        Device.osName || 'unknown',
+        Device.osVersion || 'unknown',
+        Device.modelName || 'unknown',
+        Device.brand || 'unknown',
+        Date.now().toString(),
+        Math.random().toString(36).substring(7)
+      ];
+      
+      deviceId = `device_${deviceInfo.join('_')}`.replace(/\s+/g, '_');
+      
+      // Store it for future use
+      await AsyncStorage.setItem('studymate_device_id', deviceId);
+      console.log('Generated new device ID:', deviceId);
+    } else {
+      console.log('Using existing device ID:', deviceId);
+    }
+    
+    return deviceId;
+  } catch (error) {
+    console.error('Error getting device ID:', error);
+    // Fallback to a random ID if storage fails
+    return `device_fallback_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+  }
+}
+
 export default function CallScreen() {
   const { room: roomName, mic, cam, avatar, language } = useLocalSearchParams<{ 
     room: string; 
@@ -210,6 +246,7 @@ export default function CallScreen() {
   const [avatarStatus, setAvatarStatus] = useState<string | null>(null);
   const [isMicEnabled, setIsMicEnabled] = useState(mic === 'true');
   const [isCameraEnabled, setIsCameraEnabled] = useState(cam === 'true');
+  const [deviceId, setDeviceId] = useState<string | null>(null);
 
   // Request microphone and camera permissions
   useEffect(() => {
@@ -252,18 +289,31 @@ export default function CallScreen() {
     requestPermissions();
   }, []);
 
+  // Get device ID on mount
   useEffect(() => {
+    (async () => {
+      const id = await getDeviceId();
+      setDeviceId(id);
+    })();
+  }, []);
+
+  useEffect(() => {
+    // Don't fetch token until we have device ID
+    if (!deviceId) return;
+
     (async () => {
       try {
         console.log("Attempting to connect to:", `${TOKEN_BASE}/join-room`);
         console.log("Platform:", Platform.OS);
+        console.log("Device ID:", deviceId);
         console.log("Request payload:", {
           room_name: roomName || 'demo',
           participant_name: displayName || 'user',
           mic_enabled: mic === 'true',
           camera_enabled: cam === 'true',
           invite_avatar: avatar === 'true',
-          language: language || 'en-US'
+          language: language || 'en-US',
+          device_id: deviceId
         });
 
         // Use the /join-room endpoint with POST request
@@ -278,7 +328,8 @@ export default function CallScreen() {
             mic_enabled: mic === 'true',
             camera_enabled: cam === 'true',
             invite_avatar: avatar === 'true',
-            language: language || 'en-US'
+            language: language || 'en-US',
+            device_id: deviceId
           })
         });
 
@@ -317,7 +368,7 @@ export default function CallScreen() {
         setErr(e.message || "Failed to fetch token");
       }
     })();
-  }, [roomName, displayName, mic, cam, avatar, language]);
+  }, [roomName, displayName, mic, cam, avatar, language, deviceId]);
 
   if (err) {
     return (
