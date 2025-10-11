@@ -16,6 +16,7 @@ export default {
       },
     },
     android: {
+      googleServicesFile: "./google-services.json",
       edgeToEdgeEnabled: true,
       adaptiveIcon: {
         foregroundImage: "./assets/images/StudyMate Logo.png",
@@ -62,8 +63,10 @@ export default {
         "expo-notifications",
         {
           icon: "./assets/images/StudyMate Logo.png",
-          color: "#ffffff",
+          color: "#6366f1", // Brand purple color for notification tint
           defaultChannel: "default",
+          androidMode: "default",
+          androidCollapsedTitle: "StudyMate",
         },
       ],
       "@livekit/react-native-expo-plugin",

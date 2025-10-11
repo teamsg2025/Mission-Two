@@ -567,8 +567,8 @@ async def initiate_call(request: InitiateCallRequest):
                 
                 notification_request = SendNotificationRequest(
                     to=token,
-                    title=random_message,
-                    body=f"{request.caller_name} wants to connect with you",
+                    title=f"{request.caller_name} wants to connect with you",
+                    body=random_message,
                     data={
                         "type": "incoming_call",
                         "call_id": call_id,
