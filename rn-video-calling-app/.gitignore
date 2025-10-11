@@ -38,7 +38,7 @@ yarn-error.*
 *.tsbuildinfo
 
 # Google Services (contains API keys - should not be committed)
-google-services.json
+# google-services.json  # Commented out for EAS Build - file is needed in repo
 GoogleService-Info.plist
 
 app-example

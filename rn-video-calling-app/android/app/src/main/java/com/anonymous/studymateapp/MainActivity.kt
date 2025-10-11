@@ -1,4 +1,4 @@
-package com.anonymous.rnvideocallingapp
+package com.anonymous.studymateapp
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

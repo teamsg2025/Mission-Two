@@ -107,8 +107,10 @@ export class PushNotificationService {
         return null;
       }
 
-      // Get the Expo push token
-      const token = (await Notifications.getExpoPushTokenAsync()).data;
+      // Get the Expo push token (requires Firebase/FCM to be properly configured)
+      const token = (await Notifications.getExpoPushTokenAsync({
+        projectId: '09979be6-5cf4-4a38-970a-92d758fde764'  // Your EAS project ID
+      })).data;
       this.expoPushToken = token;
       console.log('📱 Expo Push Token:', token);
 
@@ -132,8 +134,13 @@ export class PushNotificationService {
       }
 
       return token;
-    } catch (error) {
-      console.error('Error registering for push notifications:', error);
+    } catch (error: any) {
+      // Silently handle Firebase initialization errors (will be fixed after EAS build)
+      if (error?.message?.includes('FirebaseApp')) {
+        console.log('⚠️ Push notifications require a fresh build with Firebase config. Skipping for now...');
+      } else {
+        console.error('Error registering for push notifications:', error);
+      }
       return null;
     }
   }

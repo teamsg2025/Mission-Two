@@ -1,4 +1,4 @@
-package com.anonymous.rnvideocallingapp
+package com.anonymous.studymateapp
 
 import android.app.Application
 import android.content.res.Configuration

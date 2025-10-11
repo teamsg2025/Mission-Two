@@ -1,7 +1,7 @@
 export default {
   expo: {
     name: "StudyMate",
-    slug: "rn-video-calling-app",
+    slug: "studymate",
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/images/StudyMate Logo.png",
@@ -16,7 +16,6 @@ export default {
       },
     },
     android: {
-      googleServicesFile: process.env.GOOGLE_SERVICES_JSON,
       edgeToEdgeEnabled: true,
       adaptiveIcon: {
         foregroundImage: "./assets/images/StudyMate Logo.png",
@@ -30,7 +29,7 @@ export default {
         "BLUETOOTH_CONNECT",
         "MODIFY_AUDIO_SETTINGS",
       ],
-      package: "com.anonymous.rnvideocallingapp",
+      package: "com.anonymous.studymateapp",
     },
     web: {
       bundler: "metro",
@@ -76,7 +75,7 @@ export default {
       router: {},
       apiUrl: "https://mission-two-server.onrender.com",
       eas: {
-        projectId: "c6ccc88a-4f42-4b4b-97f2-7b1860ed5bc6",
+        projectId: "09979be6-5cf4-4a38-970a-92d758fde764",
       },
     },
     "owner": "funaiorg",

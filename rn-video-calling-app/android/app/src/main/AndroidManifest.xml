@@ -35,7 +35,7 @@
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
         <data android:scheme="studymate"/>
-        <data android:scheme="exp+rn-video-calling-app"/>
+        <data android:scheme="exp+studymate"/>
       </intent-filter>
     </activity>
   </application>
