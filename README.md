@@ -1,12 +1,12 @@
 # StudyMate AI 🎓
 
-An intelligent, bilingual AI study companion with persistent memory, built with LiveKit real-time video, Tavus visual avatars, and advanced memory systems.
+An intelligent, bilingual AI study companion with persistent memory, built with LiveKit real-time video, Tavus visual avatars, and mem0 Platform for advanced memory management.
 
 ## 🌟 Features
 
 - **Real-time Video Calls with AI Avatar**: Voice and video conversations with a visual AI assistant powered by Tavus
 - **Bilingual Support**: Full English and Chinese (Mandarin) support with language-specific optimizations
-- **Persistent Memory**: Remembers conversations across sessions using mem0 + Qdrant Cloud
+- **Persistent Memory**: Cross-session memory using mem0 Platform API with automatic extraction
 - **Study Coaching**: Evidence-based study techniques (Active Recall, Pomodoro, Interleaving)
 - **Emotional Support**: Counseling tools (Acknowledgement, Cognitive Reframing) for student wellbeing
 - **Conversation Spark**: AI-generated conversation starters based on user study history to facilitate peer bonding
@@ -14,45 +14,67 @@ An intelligent, bilingual AI study companion with persistent memory, built with 
 ## 🏗️ Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│              FRONTEND (React Native + Expo)                     │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐         │
-│  │  Call Tab    │  │  Spark Tab   │  │ Profile Tab  │         │
-│  │ - Language   │  │ - User List  │  │ - Display    │         │
-│  │ - Video Call │  │ - Questions  │  │   Name       │         │
-│  └──────────────┘  └──────────────┘  └──────────────┘         │
-└────────────────────────┬────────────────────────────────────────┘
-                         │ HTTP/WebSocket
-                         ▼
-┌─────────────────────────────────────────────────────────────────┐
-│              BACKEND SERVER (FastAPI)                           │
-│  ┌──────────────────────────────────────────────────┐          │
-│  │  API Endpoints                                   │          │
-│  │  • POST /join-room → Generate tokens             │          │
-│  │  • GET /api/users → List users                   │          │
-│  │  • POST /api/conversation-starters               │          │
-│  └──────────────────────────────────────────────────┘          │
-│                         │                                        │
-│                         │ Spawns subprocess                      │
-│                         ▼                                        │
-│  ┌──────────────────────────────────────────────────┐          │
-│  │  Avatar Agent (LiveKit Process)                  │          │
-│  │  • Gemini 2.0 Flash (LLM)                       │          │
-│  │  • Deepgram (STT: nova-3 / nova-2)              │          │
-│  │  • OpenAI (TTS: "nova" voice)                   │          │
-│  │  • Tavus (Visual Avatar)                        │          │
-│  │  • Transcript Capture (Monkey-patched logger)   │          │
-│  └──────────────────────────────────────────────────┘          │
-└────────────────────────┬────────────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────────────┐
-│              MEMORY SYSTEM (mem0 + Qdrant Cloud)                │
-│  • User identification via display name                         │
-│  • OpenAI embeddings (text-embedding-3-small)                   │
-│  • Vector search for relevant memories                          │
-│  • GPT-4o-mini for conversation summarization                   │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                 FRONTEND (React Native + Expo)                      │
+│   ┌──────────────┐  ┌──────────────┐  ┌──────────────┐            │
+│   │  Call Tab    │  │  Spark Tab   │  │ Profile Tab  │            │
+│   │ - Language   │  │ - User List  │  │ - Display    │            │
+│   │   Selection  │  │ - AI-Gen     │  │   Name       │            │
+│   │ - Video Call │  │   Questions  │  │ - Settings   │            │
+│   └──────┬───────┘  └──────┬───────┘  └──────┬───────┘            │
+│          │                  │                  │                     │
+└──────────┼──────────────────┼──────────────────┼─────────────────────┘
+           │ WebSocket/HTTP   │ REST API         │ AsyncStorage
+           ▼                  ▼                  ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                   BACKEND SERVER (FastAPI)                          │
+│  ┌───────────────────────────────────────────────────────┐         │
+│  │  API Endpoints                                        │         │
+│  │  • POST /join-room → Generate tokens + spawn avatar  │         │
+│  │  • GET /api/users → Fetch users from mem0           │         │
+│  │  • POST /api/conversation-starters → Generate Qs    │         │
+│  └───────────────────┬───────────────────────────────────┘         │
+│                      │                                              │
+│                      │ Spawns subprocess                            │
+│                      ▼                                              │
+│  ┌───────────────────────────────────────────────────────┐         │
+│  │  Avatar Agent (LiveKit Agents Process)               │         │
+│  │  ┌─────────────────────────────────────────────────┐ │         │
+│  │  │  AI Components                                  │ │         │
+│  │  │  • Gemini 2.0 Flash (LLM & Conversation)       │ │         │
+│  │  │  • Deepgram (STT: nova-3 / nova-2-general)     │ │         │
+│  │  │  • OpenAI (TTS: "nova" voice - multilingual)   │ │         │
+│  │  │  • Tavus (Visual Avatar with lip-sync)         │ │         │
+│  │  └─────────────────────────────────────────────────┘ │         │
+│  │  ┌─────────────────────────────────────────────────┐ │         │
+│  │  │  Memory Capture                                 │ │         │
+│  │  │  • Monkey-patched LiveKit logger                │ │         │
+│  │  │  • Real-time transcript buffer                  │ │         │
+│  │  │  • On disconnect: save raw transcript           │ │         │
+│  │  └─────────────────────────────────────────────────┘ │         │
+│  └───────────────────────────────────────────────────────┘         │
+│                      │                                              │
+│                      │ Memory Service (Python SDK)                  │
+│                      ▼                                              │
+└─────────────────────────────────────────────────────────────────────┘
+                       │ REST API
+                       ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│               mem0 PLATFORM (Managed Cloud Service)                 │
+│  ┌───────────────────────────────────────────────────────┐         │
+│  │  Automatic Memory Processing                          │         │
+│  │  • Raw transcript ingestion                           │         │
+│  │  • LLM-based information extraction                   │         │
+│  │  • Embeddings generation (OpenAI)                     │         │
+│  │  • Vector storage & semantic search                   │         │
+│  │  • Entity tracking (users, agents, runs)              │         │
+│  └───────────────────────────────────────────────────────┘         │
+│                                                                      │
+│  📊 Dashboard: https://app.mem0.ai                                  │
+│  • View all memories                                                │
+│  • Monitor user activity                                            │
+│  • Manage memory data                                               │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 ## 🛠️ Tech Stack
@@ -61,23 +83,23 @@ An intelligent, bilingual AI study companion with persistent memory, built with 
 - **React Native** with Expo
 - **LiveKit React Native SDK** for video/audio
 - **TailwindCSS (NativeWind)** for styling
-- **AsyncStorage** for local persistence
+- **AsyncStorage** for local persistence (display name)
 
 ### Backend
 - **FastAPI** (Python) - REST API server
 - **LiveKit Agents SDK** - Real-time AI agent framework
-- **mem0** - Persistent memory management
-- **Qdrant Cloud** - Vector database for embeddings
+- **mem0 Platform API** - Managed memory service (Python SDK)
 
 ### AI Services
-- **Gemini 2.0 Flash** - LLM for conversation
+- **Gemini 2.0 Flash** - LLM for conversation & question generation
 - **Deepgram** - Speech-to-Text (nova-3 for English, nova-2-general for Chinese)
-- **OpenAI** - Text-to-Speech (nova voice), Embeddings, Summarization (GPT-4o-mini)
+- **OpenAI** - Text-to-Speech (nova voice, multilingual)
 - **Tavus** - Visual avatar with lip-sync
+- **mem0 Platform** - Memory extraction, embeddings, and storage
 
 ### Infrastructure
 - **LiveKit SFU** - Real-time video infrastructure
-- **Qdrant Cloud** - Persistent vector storage
+- **mem0 Cloud** - Managed memory database with vector search
 
 ## 📦 Setup
 
@@ -85,32 +107,44 @@ An intelligent, bilingual AI study companion with persistent memory, built with 
 - Node.js 18+ and npm
 - Python 3.11+
 - Expo CLI (`npm install -g expo-cli`)
+- **mem0 Platform Account** ([sign up at app.mem0.ai](https://app.mem0.ai))
+
+### Get Your mem0 API Key
+
+1. Go to [https://app.mem0.ai](https://app.mem0.ai)
+2. Sign up for a free account
+3. Navigate to **Settings → API Keys**
+4. Create a new API key (starts with `m0-`)
+5. Find your Organization ID and Project ID (from URL or Settings)
 
 ### Environment Variables
 
-Create `.env` files in both `server/` and root:
+Create a `.env` file in `server/`:
 
 **`server/.env`:**
 ```env
-# LiveKit
+# mem0 Platform API (Required)
+MEM0_API_KEY=m0-your-api-key-here
+MEM0_ORG_ID=org_your-org-id-here          # Optional but recommended
+MEM0_PROJECT_ID=proj_your-project-id-here  # Optional but recommended
+
+# LiveKit (Required)
 LIVEKIT_URL=wss://your-livekit-server.livekit.cloud
 LIVEKIT_API_KEY=your_api_key
 LIVEKIT_API_SECRET=your_api_secret
 
-# Tavus (Visual Avatar)
+# Tavus Visual Avatar (Required)
 TAVUS_API_KEY=your_tavus_api_key
 TAVUS_REPLICA_ID=your_replica_id
 TAVUS_PERSONA_ID=your_persona_id
 
-# AI Services
-GOOGLE_API_KEY=your_google_api_key  # Gemini
-OPENAI_API_KEY=your_openai_api_key
-DEEPGRAM_API_KEY=your_deepgram_api_key
-
-# Memory (Qdrant Cloud)
-QDRANT_URL=https://your-cluster.qdrant.io
-QDRANT_API_KEY=your_qdrant_api_key
+# AI Services (Required)
+GOOGLE_API_KEY=your_google_api_key   # For Gemini 2.0 Flash
+OPENAI_API_KEY=your_openai_api_key   # For TTS (nova voice)
+DEEPGRAM_API_KEY=your_deepgram_api_key  # For STT
 ```
+
+**Note**: Qdrant Cloud is no longer needed! mem0 Platform handles all storage.
 
 ### Installation
 
@@ -138,47 +172,100 @@ python server.py
 # Server runs on http://localhost:3001
 ```
 
+You should see:
+```
+[MemoryService] ✅ Initialized with mem0 Platform API
+[MemoryService] 🌐 Using managed cloud infrastructure
+[MemoryService] 💾 Persistent cross-session memory enabled!
+[MemoryService] 📊 Access dashboard at: https://app.mem0.ai
+```
+
 ### 2. Start Frontend
 ```bash
 cd rn-video-calling-app
 npx expo start
-# Scan QR code with Expo Go app
+# Scan QR code with Expo Go app (iOS/Android)
 ```
 
 ### 3. (Optional) Add Test Users for Conversation Spark
 ```bash
 cd server
 python add_test_users.py
-# Adds Henry (CS student) and Isaac (Physics student) to Qdrant
+# Adds Henry (CS student) and Isaac (Physics student) to mem0 Platform
 ```
+
+This takes ~30-60 seconds as it calls the mem0 API for each memory.
 
 ## 🎯 Key Features Explained
 
 ### 1. **Language-Specific AI**
 - User selects language before call (English or Chinese)
-- Language-specific STT models (Deepgram nova-3 for English, nova-2-general for Chinese)
-- Tailored LLM instructions and conversation flow
-- Natural multilingual TTS with OpenAI "nova" voice
+- **STT Models**: 
+  - English: Deepgram `nova-3` with `en-US`
+  - Chinese: Deepgram `nova-2-general` with `zh-CN`
+- **LLM**: Gemini 2.0 Flash with language-specific prompts
+- **TTS**: OpenAI `nova` voice (supports both languages naturally)
 
-### 2. **Persistent Memory**
-- **Display Name Identification**: Each user has a unique display name stored locally
-- **Conversation Capture**: Transcripts captured via monkey-patched LiveKit logger
-- **Summarization**: GPT-4o-mini extracts key topics, concerns, and progress on disconnect
-- **Vector Storage**: Embeddings stored in Qdrant Cloud for semantic search
-- **Context Injection**: Relevant memories loaded into LLM context at session start
+### 2. **Persistent Memory (mem0 Platform)**
+
+**How It Works:**
+
+1. **User Identification**: Display name stored locally via AsyncStorage
+2. **Transcript Capture**: Real-time capture via monkey-patched LiveKit logger
+3. **On Disconnect**: Raw transcript saved to mem0 Platform API
+4. **Automatic Extraction**: mem0's LLM extracts key information:
+   - Personal & academic profile
+   - Goals & interests
+   - Assignments & deadlines
+   - Learning preferences
+   - Challenges & support needs
+   - Achievements & progress
+5. **Context Loading**: Next session loads relevant memories automatically
+
+**Example saved memory:**
+```
+Study session on 2025-01-12 14:30:
+
+User: I'm studying biology, specifically the digestive system
+Assistant: Great! Let's start with the stomach...
+User: What about enzymes?
+Assistant: Enzymes in the stomach include pepsin...
+```
+
+mem0 extracts:
+- "Studying biology with focus on digestive system"
+- "Interested in enzymatic processes"
+- "Currently learning about stomach function"
 
 ### 3. **Conversation Spark**
-- Lists all users with study session history
-- Generates personalized conversation starter questions using Gemini
-- Questions based on target user's actual study topics and concerns
-- Facilitates peer-to-peer bonding between students
 
-### 4. **Study Coaching**
-The AI agent uses evidence-based techniques:
-- **Active Recall**: Testing knowledge before reviewing
-- **Pomodoro Technique**: Timed focus sessions with breaks
-- **Interleaving**: Connecting related topics across subjects
-- **Emotional Support**: Acknowledgement + Cognitive Reframing for student wellbeing
+**Flow:**
+1. User opens Spark tab
+2. Frontend calls `GET /api/users` → Retrieves users from mem0 Platform
+3. User selects a study buddy (e.g., "Henry")
+4. Frontend calls `POST /api/conversation-starters` with display name
+5. Backend:
+   - Fetches all of Henry's memories from mem0
+   - Sends to Gemini with prompt to generate 5 personalized questions
+6. Display questions like:
+   - "How's your data structures project coming along?"
+   - "Need help with those recursive algorithms?"
+   - "Ready for your database exam next week?"
+
+**Benefits:**
+- Facilitates peer-to-peer study connections
+- Questions based on actual study history
+- Helps students find common interests
+
+### 4. **Study Coaching Techniques**
+
+The AI agent uses evidence-based methods:
+
+- **Active Recall**: "Try saying the formula aloud before I show it."
+- **Pomodoro**: "Let's do 20 minutes, then a 3-minute stretch."
+- **Interleaving**: "This pattern also appears in energy equations — let's link them."
+- **Acknowledgement**: "That sounds really frustrating. Anyone in your shoes would feel the same."
+- **Cognitive Reframe**: "You're not failing — you're just in the middle of learning."
 
 ## 📁 Project Structure
 
@@ -187,20 +274,24 @@ Mission-Two/
 ├── rn-video-calling-app/          # React Native frontend
 │   ├── app/
 │   │   ├── (tabs)/
-│   │   │   ├── index.tsx          # Call screen
+│   │   │   ├── index.tsx          # Call screen (language + video)
 │   │   │   ├── spark.tsx          # Conversation Spark
 │   │   │   └── profile.tsx        # Profile settings
-│   │   └── call.tsx               # Video call screen
+│   │   └── call.tsx               # LiveKit video call screen
 │   ├── hooks/
-│   │   └── useDisplayName.ts      # Persistent user identity
+│   │   ├── useDisplayName.ts      # Persistent user identity
+│   │   └── useLanguage.ts         # Language selection
+│   ├── services/
+│   │   └── pushNotifications.ts   # FCM push notifications
 │   └── package.json
 │
 ├── server/                         # Python backend
-│   ├── server.py                  # FastAPI server
-│   ├── avatar_agent.py            # LiveKit AI agent
-│   ├── memory_service.py          # mem0 wrapper
+│   ├── server.py                  # FastAPI REST API server
+│   ├── avatar_agent.py            # LiveKit AI agent (subprocess)
+│   ├── memory_service.py          # mem0 Platform API wrapper
 │   ├── add_test_users.py          # Populate test data
-│   └── requirements.txt
+│   ├── requirements.txt
+│   └── .env                       # Environment variables
 │
 └── README.md
 ```
@@ -210,30 +301,67 @@ Mission-Two/
 ### Avatar Agent Process Management
 - Each room spawns a separate avatar agent subprocess
 - Automatic cleanup of terminated processes via background task
-- Manual cleanup endpoint: `POST /cleanup-avatar/{room_name}`
+- Manual cleanup: `POST /cleanup-avatar/{room_name}`
 - View active avatars: `GET /active-avatars`
+- Logs appear in main server console
 
-### Memory Management
-- Memories indexed by display name (`user_id`)
-- Automatic summarization on call disconnect
-- Query API: `memory_service.get_all_memories(display_name)`
-- Delete API: `memory_service.delete_memories(display_name)`
+### Memory Management with mem0 Platform
+
+**Add Memory:**
+```python
+memory_service.add_conversation_turn(
+    user_id="abel",
+    user_message="Study session content here",
+    assistant_message=""  # Empty - mem0 only interprets user messages
+)
+```
+
+**Retrieve Memories:**
+```python
+memories = memory_service.get_all_memories("abel")
+```
+
+**Get All Users:**
+```python
+users_data = memory_service.get_all_users()
+# Returns: {"users": ["abel", "henry", "isaac"], "agents": [], "runs": []}
+```
+
+**View in Dashboard:**
+- Visit [https://app.mem0.ai](https://app.mem0.ai)
+- Navigate to **Memories** section
+- See all users and their extracted memories
 
 ## 🐛 Debugging
 
-**View backend logs:**
+### View Backend Logs
 ```bash
 cd server
 python server.py
 # Avatar agent logs appear in same console
 ```
 
-**Check active avatar processes:**
+### Check Memory Service
+```bash
+# Look for this in logs:
+[MemoryService] ✅ Initialized with mem0 Platform API
+[MemoryService] 🏢 Using organization: org_xxx
+[MemoryService] 📁 Using project: proj_xxx
+```
+
+### Verify Transcript Capture
+When a user disconnects, you should see:
+```
+[avatar_agent] 📝 Captured 5 transcript segments
+[avatar_agent] 💾 Saved raw transcript to memory (532 chars)
+```
+
+### Check Active Avatar Processes
 ```bash
 curl http://localhost:3001/active-avatars
 ```
 
-**Test Tavus credentials:**
+### Test Tavus Credentials
 ```bash
 curl http://localhost:3001/test-tavus
 ```
@@ -242,49 +370,136 @@ curl http://localhost:3001/test-tavus
 
 ### Room Management
 - `POST /join-room` - Generate LiveKit token & spawn avatar
+  - Body: `{room_name, participant_name, language, invite_avatar}`
 - `GET /room-info/{room_name}` - Get room status
 - `POST /cleanup-avatar/{room_name}` - Terminate avatar process
 
 ### Conversation Spark
-- `GET /api/users` - List all users with memories
+- `GET /api/users` - List all users with memories (from mem0 Platform)
 - `POST /api/conversation-starters` - Generate personalized questions
+  - Body: `{display_name}`
+  - Returns: `{starters: [...], user_info, memory_count}`
 
-### Debug
+### Debug & Monitoring
 - `GET /active-avatars` - List active avatar processes
 - `GET /test-tavus` - Verify Tavus credentials
 - `GET /registered-tokens` - View push notification tokens
 
-## 🎓 Study Techniques Implemented
-
-1. **Active Recall**: "Try saying the formula aloud before I show it."
-2. **Pomodoro**: "Let's do 20 minutes, then a 3-minute stretch."
-3. **Interleaving**: "This pattern also appears in energy equations — let's link them."
-4. **Acknowledgement**: "That sounds really frustrating. Anyone in your shoes would feel the same."
-5. **Cognitive Reframe**: "You're not failing — you're just in the middle of learning."
-
 ## 🌍 Language Support
 
-| Language | STT Model | Code |
-|----------|-----------|------|
-| English | Deepgram nova-3 | `en-US` |
-| Chinese (Mandarin) | Deepgram nova-2-general | `cmn-CN` |
+| Language | STT Model | STT Code | LLM | TTS |
+|----------|-----------|----------|-----|-----|
+| English | Deepgram nova-3 | `en-US` | Gemini 2.0 Flash | OpenAI nova |
+| Chinese (Mandarin) | Deepgram nova-2-general | `cmn-CN` | Gemini 2.0 Flash | OpenAI nova |
 
-Both languages use the same TTS (OpenAI "nova") and LLM (Gemini 2.0 Flash).
+**Note**: 
+- Gemini provides language-specific instructions (entirely English or entirely Chinese)
+- OpenAI `nova` voice handles both languages naturally (multilingual)
 
 ## 📊 Memory System Flow
 
-1. **Call Start**: Load user's recent memories → Inject into LLM context
-2. **Conversation**: Transcripts captured via monkey-patched logger
-3. **Call End**: Summarize transcripts via GPT-4o-mini → Save to Qdrant
-4. **Next Session**: Previous memories loaded automatically
+```
+┌─────────────────────────────────────────────────────────────┐
+│  1. CALL START                                              │
+│     • Load user's recent memories from mem0                 │
+│     • Inject context into Gemini's system prompt            │
+│     • Avatar greets with memory awareness                   │
+└─────────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│  2. DURING CONVERSATION                                     │
+│     • User speaks → Deepgram STT → text                     │
+│     • Gemini generates response                             │
+│     • OpenAI TTS → audio → Tavus avatar                     │
+│     • Transcripts captured in buffer (_global_transcript)   │
+└─────────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│  3. CALL END (User Disconnects)                             │
+│     • Combine all transcript segments                       │
+│     • Save raw transcript to mem0 Platform                  │
+│     • Format: "Study session on {timestamp}:\n\n{transcript}"│
+└─────────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│  4. mem0 AUTOMATIC PROCESSING                               │
+│     • Extract key information using LLM                     │
+│     • Create structured memories                            │
+│     • Generate embeddings                                   │
+│     • Store in vector database                              │
+└─────────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│  5. NEXT SESSION                                            │
+│     • Retrieve relevant memories via semantic search        │
+│     • Avatar continues conversation with context            │
+│     • "Good to see you again! Last time we were working     │
+│       on that biology assignment about enzymes..."          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## 🎓 Memory Categories Tracked
+
+The system automatically extracts and categorizes:
+
+1. **Personal & Academic Profile**
+   - Name, school, major, courses
+2. **Academic Goals & Interests**
+   - GPA targets, career aspirations, subject interests
+3. **Assignments & Deadlines**
+   - Upcoming projects, exams, due dates
+4. **Learning Preferences**
+   - Visual/auditory, solo/group, study environments
+5. **Extracurricular Activities**
+   - Clubs, sports, research projects
+6. **Challenges & Support Needs**
+   - Difficult subjects, motivation issues
+7. **Achievements & Progress**
+   - Awards, completed courses, new skills
+8. **Feedback & Motivation**
+   - What helps/hinders learning
+
+## 🚀 Deployment
+
+### Backend (Render.com)
+- Python 3.11 runtime
+- Add all environment variables in Render dashboard
+- Build command: `pip install -r requirements.txt`
+- Start command: `uvicorn server:app --host 0.0.0.0 --port $PORT`
+
+### Frontend (EAS Build)
+```bash
+cd rn-video-calling-app
+eas build --platform android --profile preview
+# or
+eas build --platform ios --profile preview
+```
 
 ## 🤝 Contributing
 
 This is a production-ready AI study companion. Key areas for enhancement:
-- Additional language support
-- Group study sessions
+- Additional language support (Spanish, French, etc.)
+- Group study sessions (multi-user rooms)
 - Study analytics dashboard
-- Mobile push notifications for peer connections
+- Spaced repetition scheduling
+- Integration with learning management systems (LMS)
+
+## 📚 Documentation
+
+- **mem0 Platform Setup**: See `server/MEM0_PLATFORM_SETUP.md`
+- **Memory Migration Guide**: See `MEM0_PLATFORM_MIGRATION.md`
+- **API Reference**: See inline documentation in `server.py`
+
+## 🔗 Useful Links
+
+- **mem0 Dashboard**: [https://app.mem0.ai](https://app.mem0.ai)
+- **mem0 Docs**: [https://docs.mem0.ai](https://docs.mem0.ai)
+- **LiveKit Docs**: [https://docs.livekit.io](https://docs.livekit.io)
+- **Tavus Docs**: [https://docs.tavus.io](https://docs.tavus.io)
 
 ## 📄 License
 
@@ -293,3 +508,5 @@ MIT License - feel free to use this for your own educational projects!
 ---
 
 **Built with ❤️ for students worldwide** 🌏
+
+*Empowering learning through AI-powered conversations and persistent memory*
