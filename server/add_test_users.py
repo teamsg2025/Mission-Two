@@ -1,5 +1,5 @@
 """
-Script to add test users with memories to Qdrant Cloud for testing Conversation Spark
+Script to add test users with memories to mem0 Platform for testing Conversation Spark
 """
 import os
 import sys
@@ -22,42 +22,43 @@ def add_test_users():
     user1_name = "Henry"
     print(f"\n👤 Adding Test User 1: {user1_name}")
     
+    # Note: mem0 only interprets user messages, so put all info in user_message
     user1_memories = [
-        ("Learning data structures", "Discussed linked lists, stacks, and queues. Covered implementation details and time complexity. Student working on a project using these structures."),
-        ("Algorithm complexity review", "Reviewed Big O notation - O(n), O(log n), O(n²). Student asked about analyzing recursive algorithms and optimizing code."),
-        ("Struggling with recursion", "Student felt confused about recursive functions. Explained with examples like factorial and Fibonacci. Student understood better after tracing execution step by step."),
-        ("Binary search trees", "Worked through BST operations - insertion, deletion, search. Student is preparing for a data structures exam next week."),
-        ("Database design questions", "Discussed normalization, SQL joins, and indexing. Student mentioned they have a database project due soon and needs help with schema design."),
+        "Learning data structures: discussed linked lists, stacks, and queues. Covered implementation details and time complexity. Working on a project using these structures.",
+        "Algorithm complexity review: reviewed Big O notation - O(n), O(log n), O(n²). Asked about analyzing recursive algorithms and optimizing code.",
+        "Struggling with recursion: felt confused about recursive functions. Learned with examples like factorial and Fibonacci. Understood better after tracing execution step by step.",
+        "Binary search trees: worked through BST operations - insertion, deletion, search. Preparing for a data structures exam next week.",
+        "Database design: discussed normalization, SQL joins, and indexing. Have a database project due soon and need help with schema design.",
     ]
     
-    for user_msg, assistant_msg in user1_memories:
+    for memory in user1_memories:
         memory_service.add_conversation_turn(
-            device_id=user1_name,
-            user_message=user_msg,
-            assistant_message=assistant_msg
+            user_id=user1_name,
+            user_message=memory,
+            assistant_message=""  # Empty as mem0 only interprets user messages
         )
-        print(f"  ✅ Added memory: {user_msg[:50]}...")
+        print(f"  ✅ Added memory: {memory[:50]}...")
     
     # Test User 2: Physics student
     user2_name = "Isaac"
     print(f"\n👤 Adding Test User 2: {user2_name}")
     
     user2_memories = [
-        ("Newton's laws of motion", "Student working on force, mass, and acceleration problems. Discussed F=ma and free body diagrams. Struggling with tension and friction problems."),
-        ("Kinematics equations", "Practiced projectile motion and velocity calculations. Student has trouble visualizing parabolic trajectories and choosing the right equations."),
-        ("Electromagnetism concepts", "Reviewed electric fields, magnetic fields, and Maxwell's equations. Student is preparing for a test on electromagnetic induction and feels nervous."),
-        ("Thermodynamics and entropy", "Discussed heat transfer, first and second laws of thermodynamics. Student mentioned they have a lab report on heat engines due soon."),
-        ("Feeling overwhelmed with physics", "Student expressed anxiety about upcoming exams. Talked about breaking study sessions into smaller chunks and practicing more problem sets."),
-        ("Quantum mechanics intro", "Worked through wave-particle duality, uncertainty principle, and Schrödinger equation basics. Student found it abstract but made good progress."),
+        "Newton's laws of motion: working on force, mass, and acceleration problems. Learning F=ma and free body diagrams. Struggling with tension and friction problems.",
+        "Kinematics equations: practiced projectile motion and velocity calculations. Have trouble visualizing parabolic trajectories and choosing the right equations.",
+        "Electromagnetism concepts: reviewed electric fields, magnetic fields, and Maxwell's equations. Preparing for a test on electromagnetic induction and feeling nervous about it.",
+        "Thermodynamics and entropy: discussed heat transfer, first and second laws of thermodynamics. Have a lab report on heat engines due soon.",
+        "Feeling overwhelmed with physics: expressed anxiety about upcoming exams. Learning to break study sessions into smaller chunks and practice more problem sets.",
+        "Quantum mechanics intro: worked through wave-particle duality, uncertainty principle, and Schrödinger equation basics. Found it abstract but made good progress.",
     ]
     
-    for user_msg, assistant_msg in user2_memories:
+    for memory in user2_memories:
         memory_service.add_conversation_turn(
-            device_id=user2_name,
-            user_message=user_msg,
-            assistant_message=assistant_msg
+            user_id=user2_name,
+            user_message=memory,
+            assistant_message=""  # Empty as mem0 only interprets user messages
         )
-        print(f"  ✅ Added memory: {user_msg[:50]}...")
+        print(f"  ✅ Added memory: {memory[:50]}...")
     
     # Verify memories were added
     print("\n🔍 Verifying memories...")

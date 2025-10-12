@@ -493,24 +493,56 @@ async def entrypoint(ctx: agents.JobContext):
                                 model="gpt-4o-mini",
                                 messages=[{
                                     "role": "system",
-                                    "content": "Extract key information from this study session. Focus on: topics discussed, student concerns, progress made, and action items. Be concise (2-3 sentences max)."
+                                    "content": """Extract key information from this study session.
+
+                                    **Types of Information to Remember:**
+
+                                    1. **Personal & Academic Profile**
+                                    - Record name, school/university, grade level, major, area of study, and courses enrolled.
+
+                                    2. **Academic Goals & Interests**
+                                    - Note GPA targets, study-abroad plans, scholarship applications, subject interests, and career aspirations.
+
+                                    3. **Assignments & Deadlines**
+                                    - Track upcoming assignments, projects, exams, tests, due dates, and study schedules.
+
+                                    4. **Learning Preferences & Styles**
+                                    - Store preferred learning methods (visual, auditory, hands-on), class formats (online, in-person), study environments, and group vs. solo learning preferences.
+
+                                    5. **Extracurricular & Academic Activities**
+                                    - Document club memberships, organizations, sports, competitions, research projects, and volunteering.
+
+                                    6. **Challenges & Support Needs**
+                                    - Keep track of subject difficulties, tutoring requests, required accommodations, and balance issues between education and other responsibilities.
+
+                                    7. **Achievements & Progress**
+                                    - Remember academic achievements, awards, certifications, completed courses, and newly acquired skills.
+
+                                    8. **Feedback & Motivation**
+                                    - Note feedback on classes, teachers, or materials, and factors that help or hinder motivation.
+
+                                    **Example:**
+                                    Input: "I'm a second-year psychology major at Stanford, and I'm really interested in behavioral neuroscience. I've got a research paper due next Friday on cognitive bias, and honestly, I'm struggling to stay motivated lately. I usually learn best with visual materials, like diagrams and charts, and prefer studying alone in quiet spaces."
+
+                                    Output: "Psychology student at Stanford in second year with strong interest in behavioral neuroscience. Has research paper on cognitive bias due next Friday. Currently facing motivation challenges. Prefers visual learning materials and quiet solo study environments."
+"""
                                 }, {
                                     "role": "user",
                                     "content": f"Conversation:\n{full_conversation}"
                                 }],
-                                max_tokens=150
+                                max_tokens=200
                             )
                             
                             summary = summary_response.choices[0].message.content
                             print(f"[avatar_agent] 🤖 Generated summary: {summary[:100]}...")
                             
-                            # Save to memory
+                            # Save to memory (put summary in user_message as mem0 only interprets user messages)
                             import datetime
                             timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
                             memory_service.add_conversation_turn(
                                 user_id=user_name,
-                                user_message=f"Study session on {timestamp}",
-                                assistant_message=summary
+                                user_message=f"Study session on {timestamp}. {summary}",
+                                assistant_message=""  # Empty as mem0 only interprets user messages
                             )
                             print(f"[avatar_agent] 💾 Saved conversation summary to memory!")
                             
@@ -528,18 +560,19 @@ async def entrypoint(ctx: agents.JobContext):
                             # Make memory unique by including timestamp and random element
                             session_id = f"session_{int(datetime.datetime.now().timestamp())}"
                             
+                            # Build session note with available information
                             if _global_last_transcript[0]:
                                 # Use last thing user said
-                                session_note = f"Study session {session_id}: User asked about '{_global_last_transcript[0][:50]}...'. Provided educational support."
+                                session_note = f"Study session at {timestamp}. User asked about: {_global_last_transcript[0][:150]}. Had an interactive educational conversation."
                             else:
-                                session_note = f"Study session {session_id}: Interactive educational conversation at {timestamp}."
+                                session_note = f"Study session at {timestamp}. Had an interactive educational conversation about general study topics."
                             
                             memory_service.add_conversation_turn(
                                 user_id=user_name,
-                                user_message=f"Session at {timestamp}: {_global_last_transcript[0][:100] if _global_last_transcript[0] else 'General study topics'}",
-                                assistant_message=session_note
+                                user_message=session_note,  # Put all info in user_message for mem0 to interpret
+                                assistant_message=""  # Empty as mem0 only interprets user messages
                             )
-                            print(f"[avatar_agent] 💾 Saved session marker: '{session_note}'")
+                            print(f"[avatar_agent] 💾 Saved session marker: '{session_note[:80]}...'")
                         except Exception as e:
                             print(f"[avatar_agent] ⚠️ Error saving session marker: {e}")
                 
