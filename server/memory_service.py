@@ -1,81 +1,64 @@
 """
-Memory Service using mem0 for persistent conversation memory.
-Device-based user tracking for StudyMate AI assistant.
+Memory Service using mem0 Platform API for persistent conversation memory.
+User display name-based tracking for StudyMate AI assistant.
 """
 import os
 from typing import List, Dict, Optional
 from datetime import datetime
-from mem0 import Memory
+from mem0 import MemoryClient
 
 class MemoryService:
     """
-    Manages conversation memory using mem0 with device-based user identification.
+    Manages conversation memory using mem0 Platform API with user display name identification.
     """
     
-    def __init__(self, openai_api_key: Optional[str] = None):
+    def __init__(self, api_key: Optional[str] = None):
         """
-        Initialize Memory Service with OpenAI for embeddings.
+        Initialize Memory Service with mem0 Platform API.
         
         Args:
-            openai_api_key: OpenAI API key for embeddings (falls back to env var)
+            api_key: mem0 API key (falls back to MEM0_API_KEY env var)
         """
-        api_key = openai_api_key or os.getenv("OPENAI_API_KEY")
+        mem0_api_key = api_key or os.getenv("MEM0_API_KEY")
         
-        if not api_key:
-            raise ValueError("OPENAI_API_KEY is required for mem0 embeddings")
+        if not mem0_api_key:
+            raise ValueError("MEM0_API_KEY is required for mem0 Platform API")
         
-        # Configure mem0 with OpenAI embeddings
-        # Use in-memory Qdrant to avoid file locking issues with concurrent avatar subprocesses
-        
-        config = {
-            "llm": {
-                "provider": "openai",
-                "config": {
-                    "model": "gpt-4o-mini",
-                    "temperature": 0.1,
-                    "api_key": api_key
-                }
-            },
-            "embedder": {
-                "provider": "openai",
-                "config": {
-                    "model": "text-embedding-3-small",
-                    "api_key": api_key
-                }
-            },
-            "vector_store": {
-                "provider": "qdrant",
-                "config": {
-                    "collection_name": "studymate_memories",
-                    "url": os.getenv("QDRANT_URL"),
-                    "api_key": os.getenv("QDRANT_API_KEY"),
-                }
-            },
-            "version": "v1.1"
-        }
+        # Optional: Get organization and project IDs
+        org_id = os.getenv("MEM0_ORG_ID")
+        project_id = os.getenv("MEM0_PROJECT_ID")
         
         try:
-            self.memory = Memory.from_config(config)
-            qdrant_url = os.getenv("QDRANT_URL", "not-set")
-            if qdrant_url and qdrant_url != "not-set":
-                print(f"[MemoryService] ✅ Initialized with Qdrant Cloud")
-                print(f"[MemoryService] 🌐 Connected to: {qdrant_url[:50]}...")
-                print(f"[MemoryService] 💾 Persistent cross-session memory enabled!")
-            else:
-                print(f"[MemoryService] ✅ Initialized (no Qdrant URL - using default)")
+            # Initialize mem0 Platform client with optional org/project
+            client_params = {"api_key": mem0_api_key}
+            
+            if org_id:
+                client_params["org_id"] = org_id
+                print(f"[MemoryService] 🏢 Using organization: {org_id}")
+            
+            if project_id:
+                client_params["project_id"] = project_id
+                print(f"[MemoryService] 📁 Using project: {project_id}")
+            
+            self.client = MemoryClient(**client_params)
+            
+            print(f"[MemoryService] ✅ Initialized with mem0 Platform API")
+            print(f"[MemoryService] 🌐 Using managed cloud infrastructure")
+            print(f"[MemoryService] 💾 Persistent cross-session memory enabled!")
+            print(f"[MemoryService] 📊 Access dashboard at: https://app.mem0.ai")
+            
         except Exception as e:
-            print(f"[MemoryService] ❌ Error initializing memory: {e}")
-            # Try to provide more context
+            print(f"[MemoryService] ❌ Error initializing mem0 Platform client: {e}")
             import traceback
             print(f"[MemoryService] Traceback: {traceback.format_exc()}")
             raise
     
-    def get_relevant_memories(self, device_id: str, query: str, limit: int = 5) -> List[Dict]:
+    def get_relevant_memories(self, user_id: str, query: str, limit: int = 5) -> List[Dict]:
         """
-        Retrieve relevant memories for a device/user based on current query.
+        Retrieve relevant memories for a user based on current query.
         
         Args:
-            device_id: Unique device identifier
+            user_id: User display name
             query: Current conversation context or user message
             limit: Maximum number of memories to retrieve
             
@@ -83,26 +66,26 @@ class MemoryService:
             List of relevant memory dictionaries
         """
         try:
-            # Search for relevant memories
-            results = self.memory.search(
+            # Search for relevant memories using Platform API
+            results = self.client.search(
                 query=query,
-                user_id=device_id,
+                user_id=user_id,
                 limit=limit
             )
             
-            print(f"[MemoryService] 🔍 Retrieved {len(results)} memories for device: {device_id[:8]}...")
+            print(f"[MemoryService] 🔍 Retrieved {len(results)} memories for user: {user_id}")
             return results
             
         except Exception as e:
             print(f"[MemoryService] ❌ Error retrieving memories: {e}")
             return []
     
-    def add_memory(self, device_id: str, message: str, role: str = "user") -> bool:
+    def add_memory(self, user_id: str, message: str, role: str = "user") -> bool:
         """
         Add a new memory from the conversation.
         
         Args:
-            device_id: Unique device identifier
+            user_id: User display name
             message: The message content to remember
             role: Role of the speaker (user or assistant)
             
@@ -110,32 +93,32 @@ class MemoryService:
             True if successful, False otherwise
         """
         try:
-            # Add memory with metadata
-            self.memory.add(
+            # Add memory with metadata using Platform API
+            self.client.add(
                 messages=[{
                     "role": role,
                     "content": message
                 }],
-                user_id=device_id,
+                user_id=user_id,
                 metadata={
                     "timestamp": datetime.now().isoformat(),
                     "role": role
                 }
             )
             
-            print(f"[MemoryService] 💾 Added {role} memory for device: {device_id[:8]}...")
+            print(f"[MemoryService] 💾 Added {role} memory for user: {user_id}")
             return True
             
         except Exception as e:
             print(f"[MemoryService] ❌ Error adding memory: {e}")
             return False
     
-    def add_conversation_turn(self, device_id: str, user_message: str, assistant_message: str) -> bool:
+    def add_conversation_turn(self, user_id: str, user_message: str, assistant_message: str) -> bool:
         """
         Add a complete conversation turn (user + assistant).
         
         Args:
-            device_id: Unique device identifier
+            user_id: User display name
             user_message: User's message
             assistant_message: Assistant's response
             
@@ -143,46 +126,47 @@ class MemoryService:
             True if successful, False otherwise
         """
         try:
-            # Add both messages in sequence
-            self.memory.add(
+            # Add both messages in sequence using Platform API
+            self.client.add(
                 messages=[
                     {"role": "user", "content": user_message},
                     {"role": "assistant", "content": assistant_message}
                 ],
-                user_id=device_id,
+                user_id=user_id,
                 metadata={
                     "timestamp": datetime.now().isoformat(),
                     "type": "conversation_turn"
                 }
             )
             
-            print(f"[MemoryService] 💾 Added conversation turn for device: {device_id[:8]}...")
+            print(f"[MemoryService] 💾 Added conversation turn for user: {user_id}")
             return True
             
         except Exception as e:
             print(f"[MemoryService] ❌ Error adding conversation turn: {e}")
             return False
     
-    def get_all_memories(self, device_id: str) -> List[Dict]:
+    def get_all_memories(self, user_id: str) -> List[Dict]:
         """
-        Get all memories for a specific device/user.
+        Get all memories for a specific user.
         
         Args:
-            device_id: Unique device identifier
+            user_id: User display name
             
         Returns:
             List of all memories
         """
         try:
-            results = self.memory.get_all(user_id=device_id)
+            # Platform API returns list directly
+            results = self.client.get_all(user_id=user_id)
             
-            # mem0 returns dict with 'results' key containing the array
+            # Handle both list and dict response formats
             if isinstance(results, dict) and 'results' in results:
                 memories = results['results']
-                print(f"[MemoryService] 📚 Retrieved {len(memories)} memories for device: {device_id[:8]}...")
+                print(f"[MemoryService] 📚 Retrieved {len(memories)} memories for user: {user_id}")
                 return memories
             
-            print(f"[MemoryService] 📚 Retrieved {len(results)} memories for device: {device_id[:8]}...")
+            print(f"[MemoryService] 📚 Retrieved {len(results)} memories for user: {user_id}")
             return results
             
         except Exception as e:
@@ -216,19 +200,61 @@ class MemoryService:
         
         return "\n".join(context_parts)
     
-    def delete_memories(self, device_id: str) -> bool:
+    def get_all_users(self) -> Dict:
         """
-        Delete all memories for a device/user (use with caution).
+        Get all users, agents, and runs that have memories in mem0 Platform.
+        Uses the REST API directly for more reliable results.
+        
+        Returns:
+            Dictionary with 'users', 'agents', and 'runs' lists
+        """
+        try:
+            # Use REST API directly (more reliable than SDK's users() method)
+            import requests
+            
+            api_key = os.getenv("MEM0_API_KEY")
+            url = "https://api.mem0.ai/v1/entities/"
+            headers = {"Authorization": f"Token {api_key}"}
+            
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()
+            
+            data = response.json()
+            
+            # Extract entities by type from results
+            results = data.get("results", [])
+            
+            users = [entity["name"] for entity in results if entity.get("type") == "user"]
+            agents = [entity["name"] for entity in results if entity.get("type") == "agent"]
+            runs = [entity["name"] for entity in results if entity.get("type") == "run"]
+            
+            print(f"[MemoryService] 👥 Retrieved {len(users)} users, {len(agents)} agents, {len(runs)} runs")
+            
+            return {
+                "users": users,
+                "agents": agents,
+                "runs": runs
+            }
+            
+        except Exception as e:
+            print(f"[MemoryService] ❌ Error getting all users: {e}")
+            import traceback
+            print(f"[MemoryService] Traceback: {traceback.format_exc()}")
+            return {"users": [], "agents": [], "runs": []}
+    
+    def delete_memories(self, user_id: str) -> bool:
+        """
+        Delete all memories for a user (use with caution).
         
         Args:
-            device_id: Unique device identifier
+            user_id: User display name
             
         Returns:
             True if successful, False otherwise
         """
         try:
-            self.memory.delete_all(user_id=device_id)
-            print(f"[MemoryService] 🗑️ Deleted all memories for device: {device_id[:8]}...")
+            self.client.delete_all(user_id=user_id)
+            print(f"[MemoryService] 🗑️ Deleted all memories for user: {user_id}")
             return True
             
         except Exception as e:

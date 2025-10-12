@@ -631,51 +631,34 @@ async def get_registered_tokens():
 
 @app.get("/api/users")
 async def get_all_users():
-    """Get all unique users from Qdrant memory database"""
+    """Get all unique users from mem0 Platform who have memories stored"""
     try:
         from memory_service import get_memory_service
+        
         memory_service = get_memory_service()
         
-        # Get all memories to extract unique user IDs
-        # Note: In production, you'd want a more efficient way to get unique users
-        # For now, we'll use Qdrant's scroll API to get all points
-        from qdrant_client import QdrantClient
+        # Use mem0 Platform's native users() API via memory service
+        # Returns all users, agents, and runs with memories
+        mem0_response = memory_service.get_all_users()
         
-        qdrant_url = os.getenv("QDRANT_URL")
-        qdrant_api_key = os.getenv("QDRANT_API_KEY")
+        # Extract user_ids from response
+        # Response format: {"users": [...], "agents": [...], "runs": [...]}
+        user_ids = mem0_response.get("users", [])
         
-        if not qdrant_url or not qdrant_api_key:
-            return {"users": []}
-        
-        client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
-        
-        # Scroll through all points to get unique user_ids
-        points, _ = client.scroll(
-            collection_name="studymate_memories",
-            limit=1000,  # Adjust as needed
-            with_payload=True,
-            with_vectors=False
-        )
-        
-        # Extract unique user_ids (which are now display names)
-        user_names = set()
-        for point in points:
-            if point.payload and 'user_id' in point.payload:
-                user_names.add(point.payload['user_id'])
-        
-        # Create user objects with basic info
+        # Create user objects with display names
         users = [
             {
-                "id": user_name,
-                "display_name": user_name
+                "id": user_id,
+                "display_name": user_id
             }
-            for user_name in sorted(user_names)
+            for user_id in sorted(user_ids) if user_id  # Filter out empty strings
         ]
         
+        print(f"[server] 📊 Found {len(users)} users with memories")
         return {"users": users, "total": len(users)}
         
     except Exception as e:
-        print(f"Error fetching users: {e}")
+        print(f"[server] ❌ Error fetching users from mem0 Platform: {e}")
         import traceback
         print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Failed to fetch users: {str(e)}")
