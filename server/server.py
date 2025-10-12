@@ -51,7 +51,6 @@ class JoinRoomRequest(BaseModel):
     camera_enabled: bool = True
     invite_avatar: bool = False  # New field to optionally invite avatar
     language: str = "en-US"  # Language code for AI assistant
-    device_id: Optional[str] = None  # Persistent device ID for memory
 
 class InviteAvatarRequest(BaseModel):
     room_name: str

@@ -508,7 +508,7 @@ async def entrypoint(ctx: agents.JobContext):
                             import datetime
                             timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
                             memory_service.add_conversation_turn(
-                                device_id=user_name,
+                                user_id=user_name,
                                 user_message=f"Study session on {timestamp}",
                                 assistant_message=summary
                             )
@@ -535,7 +535,7 @@ async def entrypoint(ctx: agents.JobContext):
                                 session_note = f"Study session {session_id}: Interactive educational conversation at {timestamp}."
                             
                             memory_service.add_conversation_turn(
-                                device_id=user_name,
+                                user_id=user_name,
                                 user_message=f"Session at {timestamp}: {_global_last_transcript[0][:100] if _global_last_transcript[0] else 'General study topics'}",
                                 assistant_message=session_note
                             )
